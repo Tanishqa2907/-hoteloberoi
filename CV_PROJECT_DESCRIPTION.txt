@@ -1,0 +1,23 @@
+Hotel Management System | React, TypeScript, Node.js, SQLite
+
+Developed a production-ready full-stack hotel management system enabling real-time room booking, guest check-in/check-out, and automated billing with GST calculation. 
+
+Key Features:
+• Real-time dashboard with live statistics, occupancy rates, and revenue tracking
+• Room management system for 15 rooms across 3 categories with availability tracking
+• Complete guest lifecycle management with check-in/check-out workflows
+• Automated invoice generation with 12% GST calculation
+• Responsive mobile-first UI with modern animations and glassmorphism effects
+
+Technical Stack:
+• Frontend: React 18, TypeScript, Vite, React Query, Tailwind CSS, shadcn/ui
+• Backend: Node.js, Express.js, SQLite, RESTful API
+• Features: Error boundaries, loading states, input validation, code splitting, real-time data synchronization
+
+Achievements:
+• Implemented React Query for efficient data fetching and automatic synchronization
+• Built centralized API service layer with comprehensive error handling
+• Optimized production builds with code splitting and tree shaking
+• Created reusable components with full TypeScript type safety
+
+
