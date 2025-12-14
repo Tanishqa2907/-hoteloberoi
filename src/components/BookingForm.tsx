@@ -10,7 +10,7 @@ import { User, Phone, Mail, Calendar, BedDouble, CheckCircle } from 'lucide-reac
 interface BookingFormProps {
   rooms: Room[];
   getAvailableRooms: (type?: RoomType) => Room[];
-  onCheckIn: (guestData: Omit<Guest, 'id' | 'totalBill'>) => { success: boolean; message: string };
+  onCheckIn: (guestData: Omit<Guest, 'id' | 'totalBill'>) => Promise<{ success: boolean; message: string }>;
   preselectedRoomId?: number;
 }
 
@@ -40,35 +40,39 @@ export const BookingForm = ({ rooms, getAvailableRooms, onCheckIn, preselectedRo
     }
 
     setIsSubmitting(true);
-    
-    // Simulate async operation
-    await new Promise(resolve => setTimeout(resolve, 800));
 
-    const result = onCheckIn({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      contact: formData.contact,
-      email: formData.email,
-      roomId: parseInt(selectedRoom),
-      checkInDate: new Date(),
-      numberOfDays: formData.numberOfDays,
-    });
+    try {
+      const result = await onCheckIn({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        contact: formData.contact,
+        email: formData.email,
+        roomId: parseInt(selectedRoom),
+        checkInDate: new Date(),
+        numberOfDays: formData.numberOfDays,
+      });
 
-    setIsSubmitting(false);
-
-    if (result.success) {
-      setBookingSuccess(true);
-      toast({ title: 'Success', description: 'Guest checked in successfully!' });
-      
-      // Reset form after delay
-      setTimeout(() => {
-        setFormData({ firstName: '', lastName: '', contact: '', email: '', numberOfDays: 1 });
-        setSelectedRoom('');
-        setSelectedType('');
-        setBookingSuccess(false);
-      }, 2000);
-    } else {
-      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+      if (result.success) {
+        setBookingSuccess(true);
+        
+        // Reset form after delay
+        setTimeout(() => {
+          setFormData({ firstName: '', lastName: '', contact: '', email: '', numberOfDays: 1 });
+          setSelectedRoom('');
+          setSelectedType('');
+          setBookingSuccess(false);
+        }, 2000);
+      } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ 
+        title: 'Error', 
+        description: 'An unexpected error occurred. Please try again.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

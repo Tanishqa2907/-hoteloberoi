@@ -1,0 +1,7 @@
+node_modules/
+hotel.db
+hotel.db-journal
+*.log
+.env
+.env.local
+

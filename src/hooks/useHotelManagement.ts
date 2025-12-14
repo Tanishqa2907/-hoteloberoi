@@ -1,120 +1,158 @@
-import { useState, useCallback } from 'react';
-import { Room, Guest, RoomType, ROOM_CONFIGS, GST_RATE } from '@/types/hotel';
-
-const initializeRooms = (): Room[] => {
-  const rooms: Room[] = [];
-  
-  // Rooms 1-5: Non-AC (Standard)
-  for (let i = 1; i <= 5; i++) {
-    rooms.push({ id: i, type: 'non-ac', price: 2000, isOccupied: false });
-  }
-  
-  // Rooms 6-10: AC (Deluxe)
-  for (let i = 6; i <= 10; i++) {
-    rooms.push({ id: i, type: 'ac', price: 2500, isOccupied: false });
-  }
-  
-  // Rooms 11-15: Premium Suite
-  for (let i = 11; i <= 15; i++) {
-    rooms.push({ id: i, type: 'premium', price: 3000, isOccupied: false });
-  }
-  
-  return rooms;
-};
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Room, Guest, RoomType } from '@/types/hotel';
+import { api, ApiError } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 export const useHotelManagement = () => {
-  const [rooms, setRooms] = useState<Room[]>(initializeRooms);
-  const [guests, setGuests] = useState<Guest[]>([]);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const getAvailableRooms = useCallback((type?: RoomType) => {
+  // Fetch rooms
+  const {
+    data: rooms = [],
+    isLoading: roomsLoading,
+    error: roomsError,
+  } = useQuery<Room[]>({
+    queryKey: ['rooms'],
+    queryFn: api.getRooms,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  // Fetch guests
+  const {
+    data: guests = [],
+    isLoading: guestsLoading,
+    error: guestsError,
+  } = useQuery<Guest[]>({
+    queryKey: ['guests'],
+    queryFn: api.getGuests,
+    refetchInterval: 30000,
+  });
+
+  // Fetch stats
+  const {
+    data: stats,
+    isLoading: statsLoading,
+  } = useQuery({
+    queryKey: ['stats'],
+    queryFn: api.getStats,
+    refetchInterval: 30000,
+  });
+
+  // Check-in mutation
+  const checkInMutation = useMutation({
+    mutationFn: api.createBooking,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['guests'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to check in guest',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Check-out mutation
+  const checkOutMutation = useMutation({
+    mutationFn: api.checkout,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['guests'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+    onError: (error: ApiError) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to check out guest',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Helper functions
+  const getAvailableRooms = (type?: RoomType): Room[] => {
     return rooms.filter(room => !room.isOccupied && (type ? room.type === type : true));
-  }, [rooms]);
+  };
 
-  const getOccupiedRooms = useCallback(() => {
+  const getOccupiedRooms = (): Room[] => {
     return rooms.filter(room => room.isOccupied);
-  }, [rooms]);
+  };
 
-  const getRoomById = useCallback((roomId: number) => {
+  const getRoomById = (roomId: number): Room | undefined => {
     return rooms.find(room => room.id === roomId);
-  }, [rooms]);
+  };
 
-  const getGuestByRoomId = useCallback((roomId: number) => {
+  const getGuestByRoomId = (roomId: number): Guest | undefined => {
     return guests.find(guest => guest.roomId === roomId);
-  }, [guests]);
+  };
 
-  const checkIn = useCallback((guestData: Omit<Guest, 'id' | 'totalBill'>) => {
-    const room = getRoomById(guestData.roomId);
-    if (!room || room.isOccupied) {
-      return { success: false, message: 'Room is not available' };
+  const checkIn = async (guestData: Omit<Guest, 'id' | 'totalBill'>) => {
+    try {
+      const result = await checkInMutation.mutateAsync({
+        firstName: guestData.firstName,
+        lastName: guestData.lastName,
+        contact: guestData.contact,
+        email: guestData.email,
+        roomId: guestData.roomId,
+        checkInDate: guestData.checkInDate,
+        numberOfDays: guestData.numberOfDays,
+      });
+
+      toast({
+        title: 'Success',
+        description: result.message || 'Guest checked in successfully',
+      });
+
+      return { success: true, message: result.message, guest: result.guest };
+    } catch (error) {
+      const apiError = error as ApiError;
+      return { success: false, message: apiError.message || 'Check-in failed' };
     }
+  };
 
-    const newGuest: Guest = {
-      ...guestData,
-      id: crypto.randomUUID(),
-    };
-
-    setGuests(prev => [...prev, newGuest]);
-    setRooms(prev => prev.map(r => 
-      r.id === guestData.roomId ? { ...r, isOccupied: true } : r
-    ));
-
-    return { success: true, message: 'Check-in successful', guest: newGuest };
-  }, [getRoomById]);
-
-  const checkOut = useCallback((roomId: number) => {
-    const guest = getGuestByRoomId(roomId);
-    const room = getRoomById(roomId);
-    
-    if (!guest || !room) {
-      return { success: false, message: 'Guest not found' };
+  const checkOut = async (roomId: number) => {
+    try {
+      const result = await checkOutMutation.mutateAsync(roomId);
+      return {
+        success: true,
+        message: result.message,
+        billDetails: result.billDetails,
+      };
+    } catch (error) {
+      const apiError = error as ApiError;
+      return { success: false, message: apiError.message || 'Check-out failed' };
     }
+  };
 
-    const baseAmount = room.price * guest.numberOfDays;
-    const gstAmount = baseAmount * GST_RATE;
-    const totalBill = baseAmount + gstAmount;
-
-    const billDetails = {
-      guestName: `${guest.firstName} ${guest.lastName}`,
-      roomId: room.id,
-      roomType: ROOM_CONFIGS.find(c => c.type === room.type)?.label,
-      pricePerDay: room.price,
-      numberOfDays: guest.numberOfDays,
-      baseAmount,
-      gstAmount,
-      gstRate: GST_RATE * 100,
-      totalBill,
-      checkInDate: guest.checkInDate,
-    };
-
-    setGuests(prev => prev.filter(g => g.id !== guest.id));
-    setRooms(prev => prev.map(r => 
-      r.id === roomId ? { ...r, isOccupied: false } : r
-    ));
-
-    return { success: true, message: 'Check-out successful', billDetails };
-  }, [getGuestByRoomId, getRoomById]);
-
-  const searchGuest = useCallback((query: string) => {
+  const searchGuest = (query: string): Guest[] => {
     const lowerQuery = query.toLowerCase();
-    return guests.filter(guest => 
+    return guests.filter(guest =>
       guest.firstName.toLowerCase().includes(lowerQuery) ||
       guest.lastName.toLowerCase().includes(lowerQuery) ||
       guest.roomId.toString() === query
     );
-  }, [guests]);
+  };
 
-  const stats = {
+  const computedStats = stats || {
     totalRooms: rooms.length,
     occupiedRooms: rooms.filter(r => r.isOccupied).length,
     availableRooms: rooms.filter(r => !r.isOccupied).length,
     totalGuests: guests.length,
-    occupancyRate: Math.round((rooms.filter(r => r.isOccupied).length / rooms.length) * 100),
+    occupancyRate: rooms.length > 0
+      ? Math.round((rooms.filter(r => r.isOccupied).length / rooms.length) * 100)
+      : 0,
   };
 
   return {
     rooms,
     guests,
-    stats,
+    stats: computedStats,
+    isLoading: roomsLoading || guestsLoading || statsLoading,
+    error: roomsError || guestsError,
     getAvailableRooms,
     getOccupiedRooms,
     getRoomById,
@@ -122,5 +160,7 @@ export const useHotelManagement = () => {
     checkIn,
     checkOut,
     searchGuest,
+    isCheckingIn: checkInMutation.isPending,
+    isCheckingOut: checkOutMutation.isPending,
   };
 };

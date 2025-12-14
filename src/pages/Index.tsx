@@ -6,10 +6,14 @@ import { BookingForm } from '@/components/BookingForm';
 import { GuestsView } from '@/components/GuestsView';
 import { useHotelManagement } from '@/hooks/useHotelManagement';
 import { Toaster } from '@/components/ui/toaster';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [preselectedRoomId, setPreselectedRoomId] = useState<number | undefined>();
+  const queryClient = useQueryClient();
   
   const {
     rooms,
@@ -20,15 +24,21 @@ const Index = () => {
     getGuestByRoomId,
     checkIn,
     checkOut,
+    isLoading,
+    error,
   } = useHotelManagement();
+
+  const handleRetry = () => {
+    queryClient.invalidateQueries();
+  };
 
   const handleBookRoom = (roomId: number) => {
     setPreselectedRoomId(roomId);
     setActiveTab('booking');
   };
 
-  const handleCheckOut = (roomId: number) => {
-    return checkOut(roomId);
+  const handleCheckOut = async (roomId: number) => {
+    return await checkOut(roomId);
   };
 
   const renderContent = () => {
@@ -90,7 +100,17 @@ const Index = () => {
       
       <main className="relative pt-24 pb-12 px-4">
         <div className="container mx-auto max-w-7xl">
-          {renderContent()}
+          {isLoading && !rooms.length ? (
+            <LoadingSpinner text="Loading hotel data..." />
+          ) : error ? (
+            <ErrorDisplay 
+              error={error} 
+              onRetry={handleRetry}
+              title="Failed to load data"
+            />
+          ) : (
+            renderContent()
+          )}
         </div>
       </main>
 

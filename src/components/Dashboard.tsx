@@ -13,7 +13,7 @@ interface DashboardProps {
     totalGuests: number;
     occupancyRate: number;
   };
-  onCheckOut: (roomId: number) => void;
+  onCheckOut: (roomId: number) => Promise<{ success: boolean; message: string; billDetails?: any }>;
   getGuestByRoomId: (roomId: number) => Guest | undefined;
 }
 

@@ -8,7 +8,7 @@ import { Search, Filter } from 'lucide-react';
 interface RoomsViewProps {
   rooms: Room[];
   getGuestByRoomId: (roomId: number) => Guest | undefined;
-  onCheckOut: (roomId: number) => void;
+  onCheckOut: (roomId: number) => Promise<{ success: boolean; message: string; billDetails?: any }>;
   onBook: (roomId: number) => void;
 }
 

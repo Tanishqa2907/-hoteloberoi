@@ -10,7 +10,7 @@ interface GuestsViewProps {
   guests: Guest[];
   rooms: Room[];
   getRoomById: (roomId: number) => Room | undefined;
-  onCheckOut: (roomId: number) => { 
+  onCheckOut: (roomId: number) => Promise<{ 
     success: boolean; 
     message: string; 
     billDetails?: {
@@ -25,7 +25,7 @@ interface GuestsViewProps {
       totalBill: number;
       checkInDate: Date;
     };
-  };
+  }>;
 }
 
 export const GuestsView = ({ guests, rooms, getRoomById, onCheckOut }: GuestsViewProps) => {
@@ -54,11 +54,19 @@ export const GuestsView = ({ guests, rooms, getRoomById, onCheckOut }: GuestsVie
     guest.contact.includes(searchQuery)
   );
 
-  const handleCheckOut = (roomId: number) => {
-    const result = onCheckOut(roomId);
-    if (result.success && result.billDetails) {
-      setBillDialog({ open: true, details: result.billDetails });
-      toast({ title: 'Check-out Complete', description: 'Bill has been generated' });
+  const handleCheckOut = async (roomId: number) => {
+    try {
+      const result = await onCheckOut(roomId);
+      if (result.success && result.billDetails) {
+        setBillDialog({ open: true, details: result.billDetails });
+        toast({ title: 'Check-out Complete', description: 'Bill has been generated' });
+      }
+    } catch (error) {
+      toast({ 
+        title: 'Error', 
+        description: 'Failed to check out guest. Please try again.', 
+        variant: 'destructive' 
+      });
     }
   };
 
