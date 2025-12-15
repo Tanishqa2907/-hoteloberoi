@@ -160,3 +160,4 @@ curl http://localhost:3000/api/rooms
 
 If these work, the backend is fine. The issue is with the frontend connection.
 
+
