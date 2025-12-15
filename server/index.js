@@ -3,7 +3,8 @@ const cors = require('cors');
 const db = require('./database');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Use Render/host-provided PORT or default to 10000 for local dev
+const PORT = process.env.PORT || 10000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // CORS configuration
@@ -263,7 +264,7 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server is listening on port ${PORT}`);
     console.log(`📊 Environment: ${NODE_ENV}`);
     console.log(`💾 Database: Connected`);
 });
